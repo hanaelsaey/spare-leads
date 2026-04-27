@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spare BD — Lead Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3a;
+    --accent: #6ee7b7;
+    --accent2: #f59e0b;
+    --accent3: #818cf8;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --green: #6ee7b7;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  header {
+    padding: 48px 48px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo span {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(28px, 4vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-top: 8px;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-top: 8px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .stat-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-pill strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .stat-pill .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    padding: 0 48px;
+    border-bottom: 1px solid var(--border);
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 20px 24px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Main Content */
+  .content {
+    padding: 40px 48px;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Section Header */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-weight: 500;
+  }
+
+  .badge-green { background: rgba(110, 231, 183, 0.12); color: var(--green); border: 1px solid rgba(110, 231, 183, 0.2); }
+  .badge-yellow { background: rgba(245, 158, 11, 0.12); color: var(--accent2); border: 1px solid rgba(245, 158, 11, 0.2); }
+  .badge-purple { background: rgba(129, 140, 248, 0.12); color: var(--accent3); border: 1px solid rgba(129, 140, 248, 0.2); }
+  .badge-red { background: rgba(248, 113, 113, 0.12); color: var(--red); border: 1px solid rgba(248, 113, 113, 0.2); }
+
+  /* Lead Cards */
+  .leads-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .lead-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .lead-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .lead-card:hover {
+    border-color: rgba(110, 231, 183, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .lead-card:hover::before { opacity: 1; }
+
+  .lead-card.priority-high::before { background: linear-gradient(90deg, var(--accent), transparent); opacity: 1; }
+  .lead-card.priority-med::before { background: linear-gradient(90deg, var(--accent2), transparent); opacity: 1; }
+
+  .lead-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .lead-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .lead-type {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .lead-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .meta-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  .lead-why {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .lead-contact {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+
+  .contact-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .contact-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .contact-role {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .contact-info {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 4px;
+    word-break: break-all;
+  }
+
+  .lead-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .action-btn:hover {
+    background: rgba(110, 231, 183, 0.08);
+    border-color: rgba(110, 231, 183, 0.3);
+    color: var(--accent);
+  }
+
+  .action-btn.primary {
+    background: rgba(110, 231, 183, 0.1);
+    border-color: rgba(110, 231, 183, 0.3);
+    color: var(--accent);
+  }
+
+  .action-btn.primary:hover {
+    background: rgba(110, 231, 183, 0.18);
+  }
+
+  /* Divider */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 32px 0 24px;
+  }
+
+  .section-divider span {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Global Map */
+  .map-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .region-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .region-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .region-flag {
+    font-size: 24px;
+    margin-right: 10px;
+  }
+
+  .region-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+
+  .region-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    margin-top: 1px;
+  }
+
+  .priority-meter {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .priority-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .priority-dots {
+    display: flex;
+    gap: 3px;
+  }
+
+  .priority-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .priority-dot.filled-green { background: var(--accent); }
+  .priority-dot.filled-yellow { background: var(--accent2); }
+
+  .region-body { padding: 16px 20px; }
+
+  .region-why {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 14px;
+  }
+
+  .target-schools {
+    margin-bottom: 14px;
+  }
+
+  .target-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .school-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .school-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .school-item::before {
+    content: '→';
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .lever-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(129, 140, 248, 0.1);
+    color: var(--accent3);
+    border: 1px solid rgba(129, 140, 248, 0.2);
+    margin-top: 8px;
+    margin-right: 6px;
+    display: inline-block;
+  }
+
+  /* Outreach strategy box */
+  .strategy-box {
+    background: linear-gradient(135deg, rgba(110, 231, 183, 0.05), rgba(129, 140, 248, 0.05));
+    border: 1px solid rgba(110, 231, 183, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 32px;
+  }
+
+  .strategy-box h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .strategy-rows {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .strategy-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .strategy-item strong {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .strategy-item span {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    header { padding: 28px 20px 24px; }
+    .tabs { padding: 0 20px; }
+    .content { padding: 28px 20px; }
+    .leads-grid, .map-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Fade in */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .lead-card, .region-card {
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .leads-grid .lead-card:nth-child(1) { animation-delay: 0.05s; }
+  .leads-grid .lead-card:nth-child(2) { animation-delay: 0.1s; }
+  .leads-grid .lead-card:nth-child(3) { animation-delay: 0.15s; }
+  .leads-grid .lead-card:nth-child(4) { animation-delay: 0.2s; }
+  .leads-grid .lead-card:nth-child(5) { animation-delay: 0.25s; }
+  .leads-grid .lead-card:nth-child(6) { animation-delay: 0.3s; }
+  .leads-grid .lead-card:nth-child(7) { animation-delay: 0.35s; }
+  .leads-grid .lead-card:nth-child(8) { animation-delay: 0.4s; }
+
+  .map-grid .region-card:nth-child(1) { animation-delay: 0.05s; }
+  .map-grid .region-card:nth-child(2) { animation-delay: 0.1s; }
+  .map-grid .region-card:nth-child(3) { animation-delay: 0.15s; }
+  .map-grid .region-card:nth-child(4) { animation-delay: 0.2s; }
+  .map-grid .region-card:nth-child(5) { animation-delay: 0.25s; }
+  .map-grid .region-card:nth-child(6) { animation-delay: 0.3s; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo"><span></span> Spare · BD Intelligence</div>
+    <h1>Net-New <em>Lead List</em><br>+ Global Expansion</h1>
+    <div class="subtitle">Last updated: April 2026 · Cross-referenced against live accounts</div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-pill"><span class="dot"></span><strong>10</strong> Egypt targets</div>
+    <div class="stat-pill"><span class="dot" style="background:var(--accent2)"></span><strong>6</strong> Global markets</div>
+    <div class="stat-pill"><span class="dot" style="background:var(--accent3)"></span><strong>61</strong> Already live in EG</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('egypt')">🇪🇬 Egypt Net-New</button>
+  <button class="tab" onclick="showTab('global')">🌍 Global Expansion</button>
+</div>
+
+<div class="content">
+
+  <!-- EGYPT PANEL -->
+  <div class="panel active" id="panel-egypt">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Egypt — Net-New Qualified Targets</div>
+        <div class="subtitle" style="margin-top:4px">Confirmed NOT in your current account list · Prioritized by fit & budget</div>
+      </div>
+      <span class="badge badge-green">10 Schools</span>
+    </div>
+
+    <div class="leads-grid">
+
+      <!-- 1 -->
+      <div class="lead-card priority-high">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">El Alsson British & American International School</div>
+            <div class="lead-type">British · American · IB · New Giza (Giza)</div>
+          </div>
+          <span class="badge badge-green">Top Pick</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">Est. 1982</span>
+          <span class="meta-chip">~3,000 students</span>
+          <span class="meta-chip">Multi-curriculum</span>
+          <span class="meta-chip">New Giza campus</span>
+        </div>
+        <div class="lead-why">One of Egypt's most prestigious legacy schools. British, American & IB all in one campus. Large student body = high transaction volume. Smart Village and New Giza campuses both untapped.</div>
+        <div class="lead-contact">
+          <div class="contact-label">🎯 Primary Target</div>
+          <div class="contact-name">Enas Salaheldin</div>
+          <div class="contact-role">Director of Operations · El Alsson School</div>
+          <div class="contact-info">e[last]@alsson.com (format: first.last) · +20 2 38270800</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">🎯 Owner / Decision Maker</div>
+          <div class="contact-name">Karim Rogers</div>
+          <div class="contact-role">Executive Director & Owner · El Alsson School</div>
+          <div class="contact-info">directors@alsson.com · finance@alsson.com · +20 2 38270800</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📊 Finance (for proposal)</div>
+          <div class="contact-name">Nagwa Nabil</div>
+          <div class="contact-role">Chief Accountant · El Alsson School</div>
+          <div class="contact-info">finance@alsson.com · +20 106 142 3444 (Harraniya campus)</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="lead-card priority-high">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">Narmer American College (NAC)</div>
+            <div class="lead-type">American · IB · New Cairo · 5th Settlement</div>
+          </div>
+          <span class="badge badge-green">Top Pick</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">Est. 2000</span>
+          <span class="meta-chip">PreK–12</span>
+          <span class="meta-chip">IB World School</span>
+          <span class="meta-chip">New Cairo</span>
+        </div>
+        <div class="lead-why">25 years of operation, IB + American dual-track. Large student population in 5th Settlement — an area where you already have multiple live accounts. Natural fit.</div>
+        <div class="lead-contact">
+          <div class="contact-label">🎯 Primary Contact</div>
+          <div class="contact-name">General Office / Reception</div>
+          <div class="contact-role">Narmer American College (NAC / NIC)</div>
+          <div class="contact-info">info@nic.edu.eg · info@nacegypt.com · +20 2 25874000</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📢 PR Director (warm entry)</div>
+          <div class="contact-name">Dina Fawzy</div>
+          <div class="contact-role">Director of Public Relations · NAC</div>
+          <div class="contact-info">d[last]@nacegypt.com · Fluent in 5 languages, AUC grad</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📊 Finance / HR</div>
+          <div class="contact-name">Hala Ismail</div>
+          <div class="contact-role">HR / Admin · NAC</div>
+          <div class="contact-info">halaismail@nacegypt.com · carolinekameel@nacegypt.com</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="lead-card priority-high">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">Ecole Oasis Internationale</div>
+            <div class="lead-type">French · IB · Cairo (Maadi/Katameya area)</div>
+          </div>
+          <span class="badge badge-yellow">French Track</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">First French IB school in Egypt</span>
+          <span class="meta-chip">All 4 IB programs</span>
+          <span class="meta-chip">French curriculum</span>
+        </div>
+        <div class="lead-why">World's first school authorized to teach all 4 IB programs in French. Your Lycée Français d'Alexandrie win is your #1 door-opener here. Same profile, same audience.</div>
+        <div class="lead-contact">
+          <div class="contact-label">🎯 Director</div>
+          <div class="contact-name">Mrs. Esmat Lamei</div>
+          <div class="contact-role">Director · Ecole Oasis Internationale</div>
+          <div class="contact-info">info@ecoleoasisinternationale.com · +20 2 27328252</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📢 Marketing & Events</div>
+          <div class="contact-name">Shahd Lamei</div>
+          <div class="contact-role">Marketing, Communications & Events Director</div>
+          <div class="contact-info">s[last]@oasisdemaadi.com · LinkedIn reachable</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📊 Procurement (for ops pitch)</div>
+          <div class="contact-name">Dina Shoukry</div>
+          <div class="contact-role">Purchasing & Stock / Procurement Executive</div>
+          <div class="contact-info">d[last]@oasisdemaadi.com · Accounting background (HSBC, Ain Shams)</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="lead-card priority-high">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">Maadi French School (LFC)</div>
+            <div class="lead-type">French · Cairo · Maadi</div>
+          </div>
+          <span class="badge badge-yellow">French Track</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">Maadi district</span>
+          <span class="meta-chip">French curriculum</span>
+          <span class="meta-chip">Expat community</span>
+        </div>
+        <div class="lead-why">Prime French-curriculum school in Maadi — the expat heart of Cairo. With Lycée Français d'Alex live and Lycée Balzac as a churned reference, you have a strong French school narrative to bring.</div>
+        <div class="lead-contact">
+          <div class="contact-label">🎯 Main Contact</div>
+          <div class="contact-name">LFC Administration (AEFE-run)</div>
+          <div class="contact-role">Lycée Français du Caire — 4 campuses, 2,000+ students</div>
+          <div class="contact-info">lfc-secretariat@lfc.edu.eg · +20 2 23582320 (Maadi)</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">⚠️ Key Note</div>
+          <div class="contact-name">AEFE Government School</div>
+          <div class="contact-role">Decisions go through Director + Finance Manager</div>
+          <div class="contact-info">Maadi: +20 2 23582320 · New Cairo: +20 2 26159020</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="lead-card priority-med">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">The International School of Choueifat – Cairo</div>
+            <div class="lead-type">SABIS Network · British/American · Cairo</div>
+          </div>
+          <span class="badge badge-purple">Group Play</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">SABIS network</span>
+          <span class="meta-chip">Global group</span>
+          <span class="meta-chip">Large enrollment</span>
+        </div>
+        <div class="lead-why">Part of the SABIS global group. You already have ISC Manama (Bahrain) live — use that as your bridge. One group-level conversation could open multiple SABIS campuses.</div>
+        <div class="lead-contact">
+          <div class="contact-label">Key Leverage</div>
+          <div class="contact-name">Refer to: ISC Manama (Bahrain — Live)</div>
+          <div class="contact-role">Same SABIS group · Strong cross-reference play</div>
+          <div class="contact-info">choueifat.com · Contact via group BD</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="lead-card priority-med">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">Malvern College Egypt</div>
+            <div class="lead-type">British · New Cairo · Premium</div>
+          </div>
+          <span class="badge badge-green">High Spend</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">UK heritage brand</span>
+          <span class="meta-chip">New Cairo</span>
+          <span class="meta-chip">Premium fees</span>
+          <span class="meta-chip">Growing enrollment</span>
+        </div>
+        <div class="lead-why">Malvern College Egypt is a premium British school with high per-student spend. UK-branded schools are operationally sophisticated and open to fintech-forward solutions like Spare.</div>
+        <div class="lead-contact">
+          <div class="contact-label">🎯 CEO / Owner</div>
+          <div class="contact-name">Azza Elsherbiny</div>
+          <div class="contact-role">CEO · Malvern College Egypt</div>
+          <div class="contact-info">azza.elsherbiny@malverncollege.edu.eg · +20 2 26144400</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📊 General Inquiries</div>
+          <div class="contact-name">Front Desk / Info</div>
+          <div class="contact-role">Malvern College Egypt · Katameya, New Cairo</div>
+          <div class="contact-info">info@malverncollege.edu.eg · admissions@malverncollege.edu.eg</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📧 Email format</div>
+          <div class="contact-name">Verified format: first.last@malverncollege.edu.eg</div>
+          <div class="contact-role">Used by 60% of staff · e.g. ahmed.moselhy@malverncollege.edu.eg</div>
+          <div class="contact-info">Also: firstinitiallast@malverncollege.edu.eg</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="lead-card priority-med">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">The German School Dokki (Deutsche Schule)</div>
+            <div class="lead-type">German curriculum · Dokki, Giza</div>
+          </div>
+          <span class="badge badge-yellow">Niche</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">German embassy school</span>
+          <span class="meta-chip">Established</span>
+          <span class="meta-chip">Expat-heavy</span>
+        </div>
+        <div class="lead-why">Established German embassy school. Well-funded, tech-forward, and your DEO Kairo demo (though stalled) shows you've already entered this space. Use it as a reference.</div>
+        <div class="lead-contact">
+          <div class="contact-label">Entry Point</div>
+          <div class="contact-name">Administration / School Director</div>
+          <div class="contact-role">Deutsche Schule Dokki · +20 2 37482171</div>
+          <div class="contact-info">dskairo.com · Note: DEO demo history useful context</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="lead-card priority-med">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">New Administrative Capital schools (NCES cluster)</div>
+            <div class="lead-type">Various · New Admin Capital</div>
+          </div>
+          <span class="badge badge-purple">Emerging</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">New Capital</span>
+          <span class="meta-chip">Multiple new schools</span>
+          <span class="meta-chip">You have MISC live</span>
+        </div>
+        <div class="lead-why">New Admin Capital is booming with new private schools. You already have MISC live there. Use them as a local reference and target the 5–10 newer schools opening in the same area.</div>
+        <div class="lead-contact">
+          <div class="contact-label">Anchor Client</div>
+          <div class="contact-name">MISC — Mount International School Community (Live)</div>
+          <div class="contact-role">Use as reference for all New Capital prospects</div>
+          <div class="contact-info">Target: NCES, Badr schools, other New Capital launches</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 9 -->
+      <div class="lead-card priority-med">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">Manara School — El Gouna</div>
+            <div class="lead-type">AP Boarding · El Gouna (Red Sea)</div>
+          </div>
+          <span class="badge badge-yellow">Unique Case</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">Founded by Naguib Sawiris</span>
+          <span class="meta-chip">Boarding school</span>
+          <span class="meta-chip">Est. 2023</span>
+          <span class="meta-chip">60 students/cohort</span>
+        </div>
+        <div class="lead-why">Egypt's first leadership-focused boarding school, founded by Naguib Sawiris. Residential means 24/7 operations — Spare's full suite (cafeteria, payments, marketplace) is a natural fit. Still new, easier to win early.</div>
+        <div class="lead-contact">
+          <div class="contact-label">🎯 Head of School</div>
+          <div class="contact-name">R. Todd Cuddington</div>
+          <div class="contact-role">Head of School · Manara School, El Gouna (since 2024)</div>
+          <div class="contact-info">recruitment@manaraschool.org · manaraschool.org</div>
+        </div>
+        <div class="lead-contact" style="margin-top:8px">
+          <div class="contact-label">📍 Address</div>
+          <div class="contact-name">TU Berlin Campus, El Gouna</div>
+          <div class="contact-role">Mohamed Ibrahim Kamel Street, El Gouna, Red Sea 84513</div>
+          <div class="contact-info">Founded by Naguib Sawiris (Orascom) · Nonprofit model</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+      <!-- 10 -->
+      <div class="lead-card priority-med">
+        <div class="lead-top">
+          <div>
+            <div class="lead-name">Eduhive Group Schools (BCCIS, SIS, RBS cluster)</div>
+            <div class="lead-type">School Group · October/Zayed area</div>
+          </div>
+          <span class="badge badge-purple">Expand Group</span>
+        </div>
+        <div class="lead-meta">
+          <span class="meta-chip">BCCIS — Live</span>
+          <span class="meta-chip">SIS — Live</span>
+          <span class="meta-chip">RBS — Onboarding</span>
+          <span class="meta-chip">More campuses exist</span>
+        </div>
+        <div class="lead-why">You already have 3 Eduhive group schools. The group likely has more campuses not yet on Spare. A single group-level conversation with Eduhive leadership could unlock them all at once.</div>
+        <div class="lead-contact">
+          <div class="contact-label">Strategy</div>
+          <div class="contact-name">Target: Eduhive Group HQ</div>
+          <div class="contact-role">Ask BCCIS/SIS contacts to intro you to group leadership</div>
+          <div class="contact-info">Internal referral play via existing contacts</div>
+        </div>
+        <div class="lead-actions">
+          <div class="action-btn primary">📧 Email</div>
+          <div class="action-btn">📞 Call</div>
+          <div class="action-btn">🔗 LinkedIn</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- GLOBAL PANEL -->
+  <div class="panel" id="panel-global">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Global Expansion Priority Map</div>
+        <div class="subtitle" style="margin-top:4px">Ranked by fit, market size, and proximity to your existing wins</div>
+      </div>
+      <span class="badge badge-purple">6 Markets</span>
+    </div>
+
+    <div class="map-grid">
+
+      <!-- Saudi Arabia -->
+      <div class="region-card">
+        <div class="region-header">
+          <div style="display:flex; align-items:center;">
+            <span class="region-flag">🇸🇦</span>
+            <div>
+              <div class="region-name">Saudi Arabia</div>
+              <div class="region-sub">Riyadh · Jeddah · Eastern Province</div>
+            </div>
+          </div>
+          <div class="priority-meter">
+            <div class="priority-label">Priority</div>
+            <div class="priority-dots">
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+            </div>
+          </div>
+        </div>
+        <div class="region-body">
+          <div class="region-why">Largest untapped market near you. 13M+ expats, 200+ international schools, Vision 2030 driving a boom in premium education. High per-student spend, cashless-ready culture. You already have Al Moktashef in Jeddah in demo.</div>
+          <div class="target-schools">
+            <div class="target-label">Priority Targets + Contacts</div>
+            <div class="school-list">
+              <div class="school-item"><strong>BISR (7 campuses, 3,000+ students)</strong> — Hennie Ferreira (COO) · info@bisr.com.sa · +966 920 033 963</div>
+              <div class="school-item"><strong>AIS Riyadh (est. 1963, IB + American)</strong> — info@aisr.org · +966 11 459 7500 · admissions@aisr.org</div>
+              <div class="school-item"><strong>King's College Riyadh (Inspired Group)</strong> — You're live with Inspired globally. Contact via group relationship</div>
+              <div class="school-item"><strong>Reigate Grammar Riyadh (1,100+ students)</strong> — info@rgsriyadh.com · +966 11 293 0555</div>
+              <div class="school-item"><strong>AIS Jeddah</strong> — admissions@aisj.com · +966 12 699 0019</div>
+              <div class="school-item"><strong>Lycée Français Al Khobar</strong> — Same AEFE network as LFC Cairo · +966 13 895 9595</div>
+            </div>
+          </div>
+          <div>
+            <span class="lever-tag">Inspired Group leverage</span>
+            <span class="lever-tag">UAE case studies</span>
+            <span class="lever-tag">French Lycée wins</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kuwait -->
+      <div class="region-card">
+        <div class="region-header">
+          <div style="display:flex; align-items:center;">
+            <span class="region-flag">🇰🇼</span>
+            <div>
+              <div class="region-name">Kuwait</div>
+              <div class="region-sub">Kuwait City (5 live schools already)</div>
+            </div>
+          </div>
+          <div class="priority-meter">
+            <div class="priority-label">Priority</div>
+            <div class="priority-dots">
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="region-body">
+          <div class="region-why">You're already live in Kuwait with 5 schools (incl. Dasman Bilingual/Cognita). 70% of Kuwait's population is expats — all use international schools. Expand within the existing market by targeting untouched schools.</div>
+          <div class="target-schools">
+            <div class="target-label">Priority Targets</div>
+            <div class="school-list">
+              <div class="school-item">New English School Kuwait (first British school in Kuwait, large)</div>
+              <div class="school-item">The English Academy (IB + British, top rated)</div>
+              <div class="school-item">Al Bayan Bilingual School (premium, well-funded)</div>
+              <div class="school-item">American School of Kuwait (ASK — large American curriculum)</div>
+              <div class="school-item">Gulf English School Kuwait</div>
+            </div>
+          </div>
+          <div>
+            <span class="lever-tag">DBS Cognita (live) as reference</span>
+            <span class="lever-tag">5 active accounts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Morocco -->
+      <div class="region-card">
+        <div class="region-header">
+          <div style="display:flex; align-items:center;">
+            <span class="region-flag">🇲🇦</span>
+            <div>
+              <div class="region-name">Morocco</div>
+              <div class="region-sub">Casablanca · Rabat · Marrakech</div>
+            </div>
+          </div>
+          <div class="priority-meter">
+            <div class="priority-label">Priority</div>
+            <div class="priority-dots">
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-yellow"></div>
+              <div class="priority-dot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="region-body">
+          <div class="region-why">French curriculum stronghold with 14 international schools in Casablanca alone. Your Lycée Français wins (Alexandria, Bahrain, Dubai) are directly transferable. Growing premium private school market with limited fintech competition.</div>
+          <div class="target-schools">
+            <div class="target-label">Priority Targets</div>
+            <div class="school-list">
+              <div class="school-item">Lycée Lyautey Casablanca (flagship French lycée, large)</div>
+              <div class="school-item">Casablanca American School (IB + American)</div>
+              <div class="school-item">École Internationale de Casablanca</div>
+              <div class="school-item">Lycée Descartes Rabat</div>
+              <div class="school-item">George Washington Academy Casablanca (American curriculum)</div>
+            </div>
+          </div>
+          <div>
+            <span class="lever-tag">Lycée Français wins</span>
+            <span class="lever-tag">French-speaking BD</span>
+            <span class="lever-tag">Greenfield market</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jordan -->
+      <div class="region-card">
+        <div class="region-header">
+          <div style="display:flex; align-items:center;">
+            <span class="region-flag">🇯🇴</span>
+            <div>
+              <div class="region-name">Jordan</div>
+              <div class="region-sub">Amman · Madaba</div>
+            </div>
+          </div>
+          <div class="priority-meter">
+            <div class="priority-label">Priority</div>
+            <div class="priority-dots">
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot"></div>
+              <div class="priority-dot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="region-body">
+          <div class="region-why">Growing premium private school market. King's Academy (Jordan) is in the same Inspired family you work with globally. Geographically close to Egypt — easy to service. Dolls Academy and other new private schools are expanding.</div>
+          <div class="target-schools">
+            <div class="target-label">Priority Targets</div>
+            <div class="school-list">
+              <div class="school-item">King's Academy Jordan (Inspired Group — 45 nationalities, boarding)</div>
+              <div class="school-item">International Academy Amman (IB World School)</div>
+              <div class="school-item">American Community School Amman</div>
+              <div class="school-item">Jubilee School Amman (gifted education, large campus)</div>
+              <div class="school-item">Bishop's School Amman (British curriculum)</div>
+            </div>
+          </div>
+          <div>
+            <span class="lever-tag">Inspired Group bridge</span>
+            <span class="lever-tag">Egypt proximity</span>
+            <span class="lever-tag">Arabic-speaking BD</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Qatar -->
+      <div class="region-card">
+        <div class="region-header">
+          <div style="display:flex; align-items:center;">
+            <span class="region-flag">🇶🇦</span>
+            <div>
+              <div class="region-name">Qatar</div>
+              <div class="region-sub">Doha · Education City</div>
+            </div>
+          </div>
+          <div class="priority-meter">
+            <div class="priority-label">Priority</div>
+            <div class="priority-dots">
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot filled-green"></div>
+              <div class="priority-dot"></div>
+              <div class="priority-dot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="region-body">
+          <div class="region-why">You're in UAE + Bahrain but Qatar is untouched. Premium expat market, high school spending, and proximity to your Gulf infrastructure. Education City hosts global brand campuses. Many of your UAE school groups (GEMS, Nord Anglia) also operate here.</div>
+          <div class="target-schools">
+            <div class="target-label">Priority Targets</div>
+            <div class="school-list">
+              <div class="school-item">GEMS World Academy Doha (GEMS Group — you're already live with GEMS Egypt)</div>
+              <div class="school-item">Nord Anglia International School Doha (you have SISD Nord Anglia live)</div>
+              <div class="school-item">Lycée Français International de Doha (French track)</div>
+              <div class="school-item">American School of Doha</div>
+              <div class="school-item">Doha British School</div>
+            </div>
+          </div>
+          <div>
+            <span class="lever-tag">GEMS group leverage</span>
+            <span class="lever-tag">Nord Anglia bridge</span>
+            <span class="lever-tag">French Lycée wins</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spain expand -->
+      <div class="region-card">
+        <div class="region-header">
+          <div style="display:flex; align-items:center;">
+            <span class="region-flag">🇪🇸</span>
+            <div>
+              <div class="region-name">Spain — Expand</div>
+              <div class="region-sub">Madrid · Barcelona · Valencia · Seville</div>
+            </div>
+          </div>
+          <div class="priority-meter">
+            <div class="priority-label">Priority</div>
+            <div class="priority-dots">
+              <div class="priority-dot filled-yellow"></div>
+              <div class="priority-dot filled-yellow"></div>
+              <div class="priority-dot filled-yellow"></div>
+              <div class="priority-dot"></div>
+              <div class="priority-dot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="region-body">
+          <div class="region-why">You have 5 live schools in Madrid (King's College Chamartín, Alicante). Spain is underserved with school fintech. The Inspired Group operates more campuses here — your relationship can unlock them. Also King's College has more Spanish campuses to target.</div>
+          <div class="target-schools">
+            <div class="target-label">Priority Targets</div>
+            <div class="school-list">
+              <div class="school-item">King's College Soto de Viñuelas (another King's campus, same group)</div>
+              <div class="school-item">King's College La Moraleja (Madrid — Inspired Group)</div>
+              <div class="school-item">SEK International School El Castillo (Madrid)</div>
+              <div class="school-item">American School of Barcelona</div>
+              <div class="school-item">British Council School Madrid (large, established)</div>
+            </div>
+          </div>
+          <div>
+            <span class="lever-tag">King's College live references</span>
+            <span class="lever-tag">Inspired Group</span>
+            <span class="lever-tag">Expand within existing market</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="strategy-box">
+      <h3>⚡ Global Quick-Win Playbook</h3>
+      <div class="strategy-rows">
+        <div class="strategy-item">
+          <strong>Fastest ROI</strong>
+          <span>Kuwait — you already have 5 live accounts. Call into untouched schools using DBS/Cognita as social proof.</span>
+        </div>
+        <div class="strategy-item">
+          <strong>Biggest Prize</strong>
+          <span>Saudi Arabia — largest market, highest budgets, 200+ international schools, Vision 2030 tailwind.</span>
+        </div>
+        <div class="strategy-item">
+          <strong>Group Play</strong>
+          <span>King's College (Inspired) in Saudi + Jordan. One group contact = multiple campuses across 3 countries.</span>
+        </div>
+        <div class="strategy-item">
+          <strong>French Track</strong>
+          <span>Morocco + Qatar Lycées. Your 4 Lycée Français wins are the perfect door-opener. Lead with case studies.</span>
+        </div>
+        <div class="strategy-item">
+          <strong>Easiest Entry</strong>
+          <span>Qatar — same infrastructure, language, and school groups as UAE but totally untouched. GEMS + Nord Anglia already in your network.</span>
+        </div>
+        <div class="strategy-item">
+          <strong>Outreach Language</strong>
+          <span>KSA/Kuwait/Jordan: Arabic + English mix, WhatsApp-first. Morocco: French preferred. Spain: English or Spanish.</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + id).classList.add('active');
+    event.target.classList.add('active');
+
+    // Re-trigger animations
+    const cards = document.querySelectorAll('#panel-' + id + ' .lead-card, #panel-' + id + ' .region-card');
+    cards.forEach((card, i) => {
+      card.style.animation = 'none';
+      card.offsetHeight;
+      card.style.animation = `fadeUp 0.4s ease ${i * 0.05}s both`;
+    });
+  }
+</script>
+</body>
+</html>
